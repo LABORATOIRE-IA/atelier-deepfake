@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { quizRounds, type QuizRound } from "@/lib/content";
+import MediaFrame from "@/app/components/MediaFrame";
 
 /*
  * /quiz — Mode 1 "Vrai ou Deepfake ?" (Bloc 2).
@@ -110,7 +111,16 @@ export default function QuizPage() {
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center gap-8 px-6 pb-16">
       <Progress current={current} />
 
-      <MediaFrame round={round} index={current} compact={revealed} />
+      <MediaFrame
+        mediaType={round.mediaType}
+        mediaUrl={round.mediaUrl}
+        label={`Média ${current + 1}`}
+        className={`w-full max-w-3xl ${
+          revealed
+            ? "h-[22vh] min-h-40 max-h-60"
+            : "h-[40vh] min-h-56 max-h-[440px]"
+        }`}
+      />
 
       {!revealed ? (
         <Question onReveal={next} onBack={back} />
@@ -197,64 +207,6 @@ function Progress({ current }: { current: number }) {
           />
         ))}
       </div>
-    </div>
-  );
-}
-
-/* ── Média (placeholder gris ; gère image ET vidéo pour le Bloc 6) ──── */
-function MediaFrame({
-  round,
-  index,
-  compact = false,
-}: {
-  round: QuizRound;
-  index: number;
-  compact?: boolean;
-}) {
-  const isPlaceholder = round.mediaUrl.startsWith("/placeholder");
-  const label = `Média ${index + 1}`;
-  // Hauteur bornée pour rester dans l'écran (showroom) ; compacte en révélation.
-  const size = compact
-    ? "h-[22vh] min-h-40 max-h-60"
-    : "h-[40vh] min-h-56 max-h-[440px]";
-
-  if (!isPlaceholder) {
-    // Rendu réel (médias posés au Bloc 6) — branche sur le type.
-    return (
-      <div
-        className={`relative w-full max-w-3xl overflow-hidden rounded-2xl border border-line bg-black ${size}`}
-      >
-        {round.mediaType === "video" ? (
-          // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video
-            src={round.mediaUrl}
-            controls
-            playsInline
-            className="h-full w-full object-contain"
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={round.mediaUrl}
-            alt={label}
-            className="h-full w-full object-contain"
-          />
-        )}
-      </div>
-    );
-  }
-
-  // Placeholder gris légendé
-  return (
-    <div
-      className={`relative flex w-full max-w-3xl items-center justify-center overflow-hidden rounded-2xl border border-line bg-gradient-to-br from-surface to-surface-2 ${size}`}
-    >
-      <span className="absolute left-4 top-4 font-mono text-[0.7rem] uppercase tracking-widest text-muted">
-        {round.mediaType === "video" ? "Vidéo" : "Image"} · placeholder
-      </span>
-      <span className="text-3xl font-semibold text-muted sm:text-4xl">
-        {label}
-      </span>
     </div>
   );
 }

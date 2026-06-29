@@ -94,13 +94,41 @@ export const quizRounds: QuizRound[] = [
   },
 ];
 
+// ─── Fiches "Deepfakes célèbres" — PLACEHOLDER (Bloc 3) ───────────────
+// Cas DÉJÀ EXISTANTS et publics : on MONTRE et on DÉCORTIQUE, on ne génère
+// rien (cf. CLAUDE.md). Médias = placeholders gris ("/placeholder").
+// `howToSpot` = indices forensiques séparés par des sauts de ligne, découpés
+// en liste côté UI (le type reste une string). Vrais médias/textes au Bloc 6.
+
 export const celebrityCards: CelebrityCard[] = [
   {
-    id: "exemple-celebrite-1",
+    id: "pape-doudoune",
+    mediaType: "image",
+    mediaUrl: "/placeholder",
+    title: "Le pape en doudoune",
+    howItsMade:
+      "Image entièrement générée par un modèle text-to-image à partir d'une simple description. Aucune photo réelle n'a été utilisée : le visage et la doudoune sont synthétisés, puis l'image a circulé sans contexte sur les réseaux où elle a été prise pour vraie.",
+    howToSpot:
+      "Mains et doigts déformés, l'anneau fusionne avec le tissu\nTexture de la doudoune trop lisse, coutures incohérentes\nBords flous entre les lunettes, la peau et le col",
+  },
+  {
+    id: "fausse-allocution",
     mediaType: "video",
-    mediaUrl: "/placeholder.mp4",
-    title: "Exemple bidon",
-    howItsMade: "À rédiger au Bloc 3.",
-    howToSpot: "À rédiger au Bloc 3.",
+    mediaUrl: "/placeholder",
+    title: "Fausse allocution politique",
+    howItsMade:
+      "Deepfake vidéo par face-swap : le visage d'un dirigeant est plaqué sur un acteur, et la voix est clonée à partir d'extraits publics. Le montage reprend les codes d'une allocution officielle (drapeau, pupitre) pour gagner en crédibilité.",
+    howToSpot:
+      "Synchronisation lèvres/voix qui décroche par moments\nClignements d'yeux trop rares ou trop réguliers\nContour du visage qui « vibre » sur les mouvements rapides",
+  },
+  {
+    id: "voix-clonee-pdg",
+    mediaType: "video",
+    mediaUrl: "/placeholder",
+    title: "Voix clonée d'un PDG",
+    howItsMade:
+      "Clonage vocal : à partir de quelques minutes d'interviews publiques, un modèle de synthèse reproduit le timbre et l'intonation du dirigeant. On lui fait ensuite dire un message d'arnaque (faux ordre de virement) lors d'un appel à un collaborateur.",
+    howToSpot:
+      "Intonation plate, respirations absentes ou mal placées\nBruit de fond artificiel ou anormalement « propre »\nDemande urgente et inhabituelle (virement, secret)",
   },
 ];
