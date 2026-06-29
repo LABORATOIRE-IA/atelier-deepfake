@@ -16,6 +16,17 @@ Deux modes (à venir, ne pas implémenter avant validation) :
 - Police Poppins via `next/font`
 - Déploiement : Vercel
 
+## Déploiement
+
+Sur ce poste (réseau d'entreprise avec **CA custom**), préfixer **toute** commande
+`npx vercel` par `NODE_OPTIONS=--use-system-ca`, sinon erreur TLS
+(`unable to get local issuer certificate`).
+
+```bash
+NODE_OPTIONS=--use-system-ca npx vercel        # preview
+NODE_OPTIONS=--use-system-ca npx vercel --prod # production
+```
+
 ## Charte visuelle
 
 ⚠️ **PROVISOIRE** (valeurs de travail reprises du POC lunettes), **PAS** la
