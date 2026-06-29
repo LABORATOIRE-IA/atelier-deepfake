@@ -107,3 +107,52 @@ body {
     transform: translate3d(0.018em, -0.006em, 0);
   }
 }
+
+/*
+ * Glitch "en continu" (sobre) pour la révélation DEEPFAKE.
+ * La plupart du temps immobile, secousse brève toutes les ~3,4 s.
+ */
+@keyframes glitch-teal {
+  0%,
+  88%,
+  100% {
+    transform: translate3d(-0.02em, 0.006em, 0);
+  }
+  90% {
+    transform: translate3d(-0.1em, 0.02em, 0);
+  }
+  93% {
+    transform: translate3d(0.05em, -0.012em, 0);
+  }
+  96% {
+    transform: translate3d(-0.06em, 0.01em, 0);
+  }
+}
+@keyframes glitch-blue {
+  0%,
+  88%,
+  100% {
+    transform: translate3d(0.02em, -0.006em, 0);
+  }
+  90% {
+    transform: translate3d(0.1em, -0.02em, 0);
+  }
+  93% {
+    transform: translate3d(-0.05em, 0.012em, 0);
+  }
+  96% {
+    transform: translate3d(0.06em, -0.01em, 0);
+  }
+}
+.chromatic.live::before {
+  animation: glitch-teal 3.4s ease-in-out infinite;
+}
+.chromatic.live::after {
+  animation: glitch-blue 3.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chromatic.live::before,
+  .chromatic.live::after {
+    animation: none;
+  }
+}
