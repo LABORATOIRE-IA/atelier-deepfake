@@ -1,25 +1,71 @@
+import Link from "next/link";
+
 /*
- * Page d'accueil — placeholder minimal (Bloc 0).
- * Le routing des deux modes (Quiz / Démonstrateur) arrive au Bloc 1.
- * Identité visuelle = charte PROVISOIRE (voir app/globals.css).
+ * Accueil — deux grandes entrées vers les deux modes.
+ * Routing uniquement ; le CONTENU des modes arrive aux blocs suivants.
+ * Cartes "vrai vs faux" : surface sombre, titre à aberration chromatique
+ * (signature), halo d'accent au survol. Zones tactiles généreuses (showroom).
  */
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 bg-white px-6 text-center">
-      <span
-        aria-hidden
-        className="h-1.5 w-24 rounded-full"
-        style={{
-          background:
-            "linear-gradient(90deg, var(--color-brand-blue), var(--color-brand-teal))",
-        }}
-      />
-      <h1 className="text-5xl font-bold tracking-tight text-brand-blue sm:text-6xl">
-        Atelier Deepfake
-      </h1>
-      <p className="max-w-md text-base text-black/60">
-        Showroom Agentic Livepoint — Lab IA Onepoint
-      </p>
+    <main className="flex flex-1 flex-col items-center justify-center px-6 pb-20">
+      <div className="grid w-full max-w-4xl gap-6 md:grid-cols-2">
+        {/* Mode 1 — Quiz (accent bleu) */}
+        <Link
+          href="/quiz"
+          className="group relative flex min-h-64 flex-col justify-between overflow-hidden rounded-3xl border border-line bg-surface/70 p-8 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-brand-blue/50 hover:bg-surface-2 hover:shadow-[0_0_48px_-12px_#0066cc]"
+        >
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-blue to-transparent opacity-40 transition-opacity duration-300 group-hover:opacity-100"
+          />
+          <span className="font-mono text-xs uppercase tracking-[0.28em] text-brand-blue/80">
+            Démêler le vrai du faux
+          </span>
+          <span
+            className="chromatic mt-6 text-3xl font-bold leading-tight sm:text-[2rem]"
+            data-text="Quiz — Vrai ou Deepfake ?"
+          >
+            Quiz — Vrai ou Deepfake ?
+          </span>
+          <span className="mt-5 flex items-center justify-between gap-4">
+            <span className="text-sm text-muted">
+              Saurez-vous repérer le média truqué&nbsp;?
+            </span>
+            <span className="shrink-0 font-mono text-sm font-medium text-mist transition-transform duration-300 group-hover:translate-x-1">
+              Commencer →
+            </span>
+          </span>
+        </Link>
+
+        {/* Mode 2 — Démonstrateur (accent teal) */}
+        <Link
+          href="/demo"
+          className="group relative flex min-h-64 flex-col justify-between overflow-hidden rounded-3xl border border-line bg-surface/70 p-8 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-brand-teal/50 hover:bg-surface-2 hover:shadow-[0_0_48px_-12px_#00a39a]"
+        >
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-teal to-transparent opacity-40 transition-opacity duration-300 group-hover:opacity-100"
+          />
+          <span className="font-mono text-xs uppercase tracking-[0.28em] text-brand-teal/80">
+            Fabriquer l&apos;illusion
+          </span>
+          <span
+            className="chromatic mt-6 text-3xl font-bold leading-tight sm:text-[2rem]"
+            data-text="Démonstrateur"
+          >
+            Démonstrateur
+          </span>
+          <span className="mt-5 flex items-center justify-between gap-4">
+            <span className="text-sm text-muted">
+              Voyez comment un deepfake se fabrique, en direct.
+            </span>
+            <span className="shrink-0 font-mono text-sm font-medium text-mist transition-transform duration-300 group-hover:translate-x-1">
+              Découvrir →
+            </span>
+          </span>
+        </Link>
+      </div>
     </main>
   );
 }

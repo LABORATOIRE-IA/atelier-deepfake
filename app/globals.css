@@ -4,37 +4,106 @@
  * ────────────────────────────────────────────────────────────────
  * Charte PROVISOIRE (valeurs de travail), PAS la charte officielle
  * Onepoint — à remplacer plus tard.
- * Tokens repris du POC lunettes pour la cohérence visuelle.
- * Tailwind v4 = config CSS-first : les tokens vivent ici (@theme),
- * il n'y a plus de tailwind.config.js par défaut dans Next 16.
+ * Direction : atelier deepfake → ambiance cyber / forensique, fond sombre.
+ * Tailwind v4 = config CSS-first : les tokens vivent ici (@theme).
  * ────────────────────────────────────────────────────────────────
  */
-
-:root {
-  /* Palette provisoire */
+@theme {
+  /* — ADN charte (accents) — */
   --color-brand-blue: #0066cc;
   --color-brand-teal: #00a39a;
-  --color-white: #ffffff;
-  --color-black: #111111; /* noir neutre (pas du #000 pur) */
 
-  --background: var(--color-white);
-  --foreground: var(--color-black);
-}
+  /* — Dark theme (ambiance showroom) — */
+  --color-ink: #070b15; /* fond — bleu-noir profond */
+  --color-ink-2: #0c1322; /* fond secondaire */
+  --color-surface: #0f1729; /* carte */
+  --color-surface-2: #16203a; /* carte survol / élévation */
+  --color-line: #1f2c47; /* bordures discrètes bleutées */
+  --color-mist: #e9eefb; /* texte principal (blanc froid) */
+  --color-muted: #7e8aa8; /* texte secondaire */
 
-@theme inline {
-  /* Couleurs de la charte provisoire exposées comme utilitaires Tailwind */
-  --color-brand-blue: var(--color-brand-blue);
-  --color-brand-teal: var(--color-brand-teal);
+  /* — Dérivées ÉCLAIRCIES pour fond sombre (halos/lisibilité), pas la charte — */
+  --color-blue-glow: #2b8cff;
+  --color-teal-glow: #2fd4c8;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-
-  /* Police Poppins (chargée via next/font dans app/layout.tsx) */
-  --font-sans: var(--font-poppins);
+  /* — Polices — */
+  --font-sans: var(--font-poppins); /* charte */
+  --font-mono: var(--font-jetbrains); /* utilitaire forensique */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: var(--color-ink);
+  color: var(--color-mist);
   font-family: var(--font-sans), system-ui, sans-serif;
+  overflow-x: hidden;
+  /* Atmosphère : halos bleu/teal très diffus, fixes au scroll */
+  background-image: radial-gradient(
+      55rem 40rem at 12% -12%,
+      color-mix(in oklab, var(--color-brand-blue) 22%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      48rem 38rem at 112% 114%,
+      color-mix(in oklab, var(--color-brand-teal) 20%, transparent),
+      transparent 60%
+    );
+  background-attachment: fixed;
+}
+
+/* Accessibilité — focus clavier visible (quality floor) */
+:focus-visible {
+  outline: 2px solid var(--color-blue-glow);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/*
+ * SIGNATURE — aberration chromatique.
+ * Le texte est dédoublé en teal (canal -) et bleu (canal +), façon
+ * média truqué. Mettre le texte aussi dans data-text="…".
+ */
+.chromatic {
+  position: relative;
+  display: inline-block;
+  max-width: 100%; /* inline-block doit pouvoir wrapper (sinon overflow mobile) */
+  color: var(--color-mist);
+  isolation: isolate;
+}
+.chromatic::before,
+.chromatic::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.chromatic::before {
+  color: var(--color-teal-glow);
+  transform: translate3d(-0.018em, 0.006em, 0);
+}
+.chromatic::after {
+  color: var(--color-blue-glow);
+  transform: translate3d(0.018em, -0.006em, 0);
+}
+
+/* Le glitch s'intensifie au survol d'une carte (.group de Tailwind) */
+.group:hover .chromatic::before {
+  transform: translate3d(-0.06em, 0.012em, 0);
+}
+.group:hover .chromatic::after {
+  transform: translate3d(0.06em, -0.012em, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chromatic::before,
+  .chromatic::after {
+    transition: none;
+  }
+  .group:hover .chromatic::before {
+    transform: translate3d(-0.018em, 0.006em, 0);
+  }
+  .group:hover .chromatic::after {
+    transform: translate3d(0.018em, -0.006em, 0);
+  }
 }
