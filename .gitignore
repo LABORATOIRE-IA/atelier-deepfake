@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# images de test face-swap (visages → confidentialité, ne pas committer)
+/scripts/test/*.jpg
+/scripts/test/*.jpeg
+/scripts/test/*.png
+/scripts/test/result.*

@@ -22,6 +22,17 @@ export interface QuizRound {
   indices: string[];
 }
 
+/**
+ * Scène cible prédéfinie pour "Créer mon deepfake (live)".
+ * Option A (scènes contrôlées) : pas de dépôt libre. `file` est une image
+ * placée dans public/targets/. Sert de base_image_url au face-swap.
+ */
+export interface Scene {
+  id: string;
+  label: string;
+  file: string; // nom de fichier dans public/targets/
+}
+
 /** Mode 2b — fiche célébrité (deepfake existant présenté, non généré) */
 export interface CelebrityCard {
   id: string;
@@ -131,4 +142,19 @@ export const celebrityCards: CelebrityCard[] = [
     howToSpot:
       "Intonation plate, respirations absentes ou mal placées\nBruit de fond artificiel ou anormalement « propre »\nDemande urgente et inhabituelle (virement, secret)",
   },
+];
+
+// ─── Scènes prédéfinies "Créer mon deepfake" (Bloc 5+) ────────────────
+// 1 scène réelle pour l'instant (jt.jpg) ; structure prête pour ~10.
+// Pour en ajouter une : déposer l'image dans public/targets/ puis ajouter
+// une entrée ici. Une image déclarée mais absente est gérée côté UI (ignorée
+// / placeholder) et refusée proprement côté route.
+export const scenes: Scene[] = [
+  { id: "jt", label: "Présentateur JT", file: "jt.jpg" },
+  { id: "tribune", label: "Tribune politique", file: "tribune.jpg" },
+  { id: "linkedin", label: "Photo LinkedIn", file: "linkedin.jpg" },
+  { id: "magazine", label: "Couverture magazine", file: "magazine.jpg" },
+  { id: "astronaut", label: "Astronaute", file: "astronaut.jpg" },
+  // Pour en ajouter : déposer l'image dans public/targets/ + une ligne ici
+  // (file = nom de fichier EXACT, casse/extension comprises).
 ];
