@@ -115,7 +115,7 @@ export const celebrityCards: CelebrityCard[] = [
   {
     id: "pape-doudoune",
     mediaType: "image",
-    mediaUrl: "/placeholder",
+    mediaUrl: "/celebrites/pape-doudoune.jpg",
     title: "Le pape en doudoune",
     howItsMade:
       "Image entièrement générée par un modèle text-to-image à partir d'une simple description. Aucune photo réelle n'a été utilisée : le visage et la doudoune sont synthétisés, puis l'image a circulé sans contexte sur les réseaux où elle a été prise pour vraie.",
@@ -145,7 +145,7 @@ export const celebrityCards: CelebrityCard[] = [
 ];
 
 // ─── Scènes prédéfinies "Créer mon deepfake" (Bloc 5+) ────────────────
-// 1 scène réelle pour l'instant (jt.jpg) ; structure prête pour ~10.
+// 4 scènes : JT, Tribune, LinkedIn, Magazine.
 // Pour en ajouter une : déposer l'image dans public/targets/ puis ajouter
 // une entrée ici. Une image déclarée mais absente est gérée côté UI (ignorée
 // / placeholder) et refusée proprement côté route.
@@ -154,7 +154,6 @@ export const scenes: Scene[] = [
   { id: "tribune", label: "Tribune politique", file: "tribune.jpg" },
   { id: "linkedin", label: "Photo LinkedIn", file: "linkedin.jpg" },
   { id: "magazine", label: "Couverture magazine", file: "magazine.jpg" },
-  { id: "astronaut", label: "Astronaute", file: "astronaut.jpg" },
   // Pour en ajouter : déposer l'image dans public/targets/ + une ligne ici
   // (file = nom de fichier EXACT, casse/extension comprises).
 ];
