@@ -16,7 +16,12 @@ import MediaFrame from "@/app/components/MediaFrame";
 
 type Phase = "intro" | "round" | "end";
 
-const TOTAL = quizRounds.length;
+// Manches par session, tirées dans la banque quizRounds (lib/content.ts)
+// avec MIX GARANTI : 2 authentiques + 2 deepfakes, ordre final mélangé.
+// Re-tirage à chaque "Commencer" / "Recommencer".
+const REAL_PER_SESSION = 2;
+const FAKE_PER_SESSION = 2;
+const TOTAL = REAL_PER_SESSION + FAKE_PER_SESSION;
 
 // Styles partagés
 const PRIMARY =
@@ -34,6 +39,17 @@ function shuffle<T>(arr: readonly T[]): T[] {
   return a;
 }
 
+// Tirage d'une session : 2 REAL + 2 FAKE au hasard dans chaque pool,
+// puis mélange des 4 pour que l'ordre vrai/faux soit imprévisible.
+function drawRounds(): QuizRound[] {
+  const real = quizRounds.filter((r) => !r.isDeepfake);
+  const fake = quizRounds.filter((r) => r.isDeepfake);
+  return shuffle([
+    ...shuffle(real).slice(0, REAL_PER_SESSION),
+    ...shuffle(fake).slice(0, FAKE_PER_SESSION),
+  ]);
+}
+
 export default function QuizPage() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [current, setCurrent] = useState(0);
@@ -43,7 +59,7 @@ export default function QuizPage() {
   const [order, setOrder] = useState<QuizRound[]>([]);
 
   const start = useCallback(() => {
-    setOrder(shuffle(quizRounds));
+    setOrder(drawRounds());
     setCurrent(0);
     setRevealed(false);
     setPhase("round");
@@ -145,7 +161,7 @@ function Intro({ onStart }: { onStart: () => void }) {
         Quiz — Vrai ou Deepfake ?
       </h2>
       <p className="text-lg text-mist/80">
-        {TOTAL} manches · vote à main levée
+        {TOTAL} manches tirées au hasard · vote à main levée
       </p>
       <p className="max-w-md text-sm text-muted">
         Le facilitateur anime, le public vote à main levée. Rien n&apos;est
@@ -198,9 +214,9 @@ function Progress({ current }: { current: number }) {
         Manche {current + 1} / {TOTAL}
       </span>
       <div className="flex gap-2" aria-hidden>
-        {quizRounds.map((r, i) => (
+        {Array.from({ length: TOTAL }, (_, i) => (
           <span
-            key={r.id}
+            key={i}
             className={`h-1.5 w-10 rounded-full transition-colors ${
               i <= current ? "bg-brand-blue" : "bg-line"
             }`}

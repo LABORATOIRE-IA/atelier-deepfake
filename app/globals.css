@@ -29,6 +29,13 @@
   /* — Polices — */
   --font-sans: var(--font-poppins); /* charte */
   --font-mono: var(--font-jetbrains); /* utilitaire forensique */
+
+  /* — Header Onepoint (components/Header.tsx) — */
+  --color-logo-o: #00a39a; /* = brand-teal */
+  --color-dot-active: #0066cc; /* = brand-blue */
+  --color-dot-inactive: #333333; /* nav dot inactive */
+  --color-text-tagline: #e0e0e0; /* gris clair tagline */
+  --font-header: "Poppins", sans-serif;
 }
 
 body {
@@ -340,6 +347,24 @@ body {
   100% {
     opacity: 1;
     transform: translate3d(0.018em, -0.006em, 0);
+  }
+}
+
+/* Logo O animé (header Onepoint) : le dot bleu orbite en 8 s. */
+@keyframes spinDot {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.logo-o-animated svg {
+  animation: spinDot 8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo-o-animated svg {
+    animation: none;
   }
 }
 

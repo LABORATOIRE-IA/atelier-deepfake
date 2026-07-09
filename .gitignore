@@ -45,3 +45,6 @@ next-env.d.ts
 /scripts/test/*.jpeg
 /scripts/test/*.png
 /scripts/test/result.*
+
+# dataset source du quiz (artefact local, jamais committé)
+FINAL_DATASET.csv

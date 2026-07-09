@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Header from "@/components/Header";
 
 /*
  * Accueil — deux grandes entrées vers les deux modes.
@@ -14,10 +15,12 @@ import Link from "next/link";
  */
 export default function Home() {
   return (
-    <main
-      data-home
-      className="flex flex-1 flex-col items-center justify-center px-6 pb-20"
-    >
+    <>
+      <Header currentPage="home" />
+      <main
+        data-home
+        className="flex flex-1 flex-col items-center justify-center px-6 pb-20"
+      >
       <div className="grid w-full max-w-4xl gap-6 md:grid-cols-2">
         {/* Mode 1 — Quiz (accent bleu) */}
         <Link
@@ -77,6 +80,7 @@ export default function Home() {
           </span>
         </Link>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

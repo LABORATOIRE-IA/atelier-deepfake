@@ -45,62 +45,145 @@ export interface CelebrityCard {
   howToSpot: string;
 }
 
-// ─── Manches du quiz — PLACEHOLDER (Bloc 2) ───────────────────────────
-// Médias = placeholders gris ("/placeholder"), légendés "Média 1/2/3/4".
-// Le VRAI contenu (médias + textes) sera posé au Bloc 6.
-// isDeepfake est alterné. Explications/indices bidon mais réalistes.
+// ─── Banque du quiz (FINAL_DATASET.csv) ───────────────────────────────
+// 10 fiches tirées du dataset : 5 REAL (Unsplash) + 5 FAKE (sous-ensemble
+// photoréaliste du dataset ; label CSV = StyleGAN3). isDeepfake reflète le
+// label du CSV : FAKE → true → révélation "DEEPFAKE", REAL → false → "VRAI".
+// Fichiers locaux dans public/quiz/quiz-<image_id>.jpg (pas de dépendance
+// réseau en showroom). Le quiz tire ROUNDS_PER_SESSION manches au hasard
+// dans cette banque à chaque session (app/quiz/page.tsx).
 
 export const quizRounds: QuizRound[] = [
+  // — REAL (photos authentiques, Unsplash) —
   {
-    id: "manche-1",
+    id: "quiz-1315",
     mediaType: "image",
-    mediaUrl: "/placeholder",
+    mediaUrl: "/quiz/quiz-1315.jpg",
     isDeepfake: false,
     explanation:
-      "Photographie authentique. Le grain est homogène sur toute l'image, les ombres portées suivent une source lumineuse unique et les détails fins (mèches, pores) restent nets sans lissage artificiel.",
+      "Photographie authentique. La main dans les cheveux, le foulard à motifs et les feuilles qui passent devant le corps forment des occlusions complexes parfaitement gérées — c'est précisément là que les générateurs trébuchent.",
     indices: [
-      "Éclairage cohérent entre le visage et l'arrière-plan",
-      "Reflets identiques dans les deux yeux",
-      "Texture de peau naturelle, sans zones « plastique »",
+      "Motifs du foulard continus, sans « fonte » dans les plis",
+      "Doigts complets et cohérents derrière la tête",
+      "Feuillage net qui chevauche le corps sans artefact",
     ],
   },
   {
-    id: "manche-2",
+    id: "quiz-2612",
     mediaType: "image",
-    mediaUrl: "/placeholder",
-    isDeepfake: true,
-    explanation:
-      "Visage synthétique. La zone de raccord au niveau du cou et des oreilles présente un léger flou, et l'éclairage du visage ne correspond pas tout à fait à celui de la scène.",
-    indices: [
-      "Regardez les mains et les oreilles",
-      "Cohérence de l'éclairage : visage vs décor",
-      "Bords des cheveux légèrement « baveux »",
-    ],
-  },
-  {
-    id: "manche-3",
-    mediaType: "image",
-    mediaUrl: "/placeholder",
+    mediaUrl: "/quiz/quiz-2612.jpg",
     isDeepfake: false,
     explanation:
-      "Image authentique. Les micro-asymétries du visage sont préservées et l'arrière-plan ne comporte ni répétitions ni déformations typiques de la génération.",
+      "Photo authentique. Les rides et taches de peau sont irrégulières et cohérentes avec l'âge, le motif à pois du chemisier reste régulier jusque dans les plis, et le flou d'arrière-plan est optiquement uniforme.",
     indices: [
-      "Asymétries naturelles du visage",
-      "Arrière-plan sans motifs répétés",
-      "Cohérence des reflets et des ombres",
+      "Micro-défauts de peau non répétitifs (taches, grains de beauté)",
+      "Motif à pois régulier même déformé par les plis",
+      "Mèches fines qui se détachent proprement sur le bokeh",
     ],
   },
   {
-    id: "manche-4",
+    id: "quiz-2678",
     mediaType: "image",
-    mediaUrl: "/placeholder",
+    mediaUrl: "/quiz/quiz-2678.jpg",
+    isDeepfake: false,
+    explanation:
+      "Portrait authentique en noir et blanc. En très gros plan, chaque poil de moustache et de sourcil est net et individuel, la texture de peau (pores, petites marques) est continue — un niveau de détail que la génération lisse ou brouille.",
+    indices: [
+      "Pores et imperfections visibles et continus",
+      "Poils individuels nets (sourcils, moustache)",
+      "Reflets positionnés à l'identique dans les deux yeux",
+    ],
+  },
+  {
+    id: "quiz-740",
+    mediaType: "image",
+    mediaUrl: "/quiz/quiz-740.jpg",
+    isDeepfake: false,
+    explanation:
+      "Photo authentique. Le flou est optique : la mise au point est sur l'œil et s'estompe progressivement vers l'oreille et l'arrière-plan, comme le ferait un objectif — pas par zones incohérentes comme dans une image générée.",
+    indices: [
+      "Dégradé de netteté continu (œil net → oreille douce)",
+      "Sourcils et cils nets dans la zone de mise au point",
+      "Rides du front fines et asymétriques",
+    ],
+  },
+  {
+    id: "quiz-437",
+    mediaType: "image",
+    mediaUrl: "/quiz/quiz-437.jpg",
+    isDeepfake: false,
+    explanation:
+      "Photo authentique prise pendant Holi, la fête des couleurs. La poudre suit exactement les reliefs du visage et de la barbe, et les lunettes reflètent le décor environnant — des interactions physiques que l'IA reproduit très mal.",
+    indices: [
+      "La poudre s'accroche différemment à la peau, à la barbe, au tissu",
+      "Reflets des lunettes cohérents avec le décor",
+      "Éclaboussures individuelles nettes sur le t-shirt",
+    ],
+  },
+  // — FAKE (label CSV : générés, StyleGAN3) —
+  {
+    id: "quiz-2858",
+    mediaType: "image",
+    mediaUrl: "/quiz/quiz-2858.jpg",
     isDeepfake: true,
     explanation:
-      "Deepfake. La synchronisation entre la bouche et l'expression se décale par moments, et le clignement des yeux paraît trop régulier pour être naturel.",
+      "Visage généré (StyleGAN3 selon la banque). La résolution très faible et la forte compression sont un signal en soi : c'est le moyen le plus simple de masquer les artefacts de synthèse. Une image minuscule et invérifiable doit renforcer la méfiance.",
     indices: [
-      "Synchronisation des lèvres",
-      "Fréquence de clignement des yeux",
-      "Dents et contours parfois « fondus »",
+      "Résolution très faible : méfiance par défaut",
+      "Arrière-plan illisible, impossible à recouper",
+      "Cadrage serré type avatar, classique des visages générés",
+    ],
+  },
+  {
+    id: "quiz-2976",
+    mediaType: "image",
+    mediaUrl: "/quiz/quiz-2976.jpg",
+    isDeepfake: true,
+    explanation:
+      "Visage généré (StyleGAN3 selon la banque). Le format selfie basse résolution supprime tout ce qui permettrait de vérifier : pores, mèches, reflets dans les yeux. Une photo qui ne circule qu'en vignette est suspecte.",
+    indices: [
+      "Image trop petite pour vérifier pores et reflets",
+      "Lissage uniforme de la peau",
+      "Contexte intérieur générique, invérifiable",
+    ],
+  },
+  {
+    id: "quiz-2993",
+    mediaType: "image",
+    mediaUrl: "/quiz/quiz-2993.jpg",
+    isDeepfake: true,
+    explanation:
+      "Visage généré (StyleGAN3 selon la banque). Le rendu est propre — presque trop : peau lisse et uniforme pour un gros plan, dents très régulières, et un arrière-plan neigeux vide qui n'offre aucun élément de contexte à recouper.",
+    indices: [
+      "Peau anormalement lisse pour un gros plan",
+      "Arrière-plan vide : rien à vérifier",
+      "Dents d'une régularité parfaite",
+    ],
+  },
+  {
+    id: "quiz-3048",
+    mediaType: "image",
+    mediaUrl: "/quiz/quiz-3048.jpg",
+    isDeepfake: true,
+    explanation:
+      "Visage généré (StyleGAN3 selon la banque). Les matières complexes sont le talon d'Achille de la synthèse : scrutez la frontière entre la fourrure de la chapka et les mèches de cheveux, zone typiquement « fondue » sur les visages générés.",
+    indices: [
+      "Frontière fourrure / cheveux confuse",
+      "Arrière-plan de forêt flou aux formes répétitives",
+      "Saturation des couleurs anormalement poussée",
+    ],
+  },
+  {
+    id: "quiz-2836",
+    mediaType: "image",
+    mediaUrl: "/quiz/quiz-2836.jpg",
+    isDeepfake: true,
+    explanation:
+      "Visage généré (StyleGAN3 selon la banque). Portrait frontal, cadrage carré serré, fond d'intérieur à peine esquissé : la signature des banques de visages synthétiques — crédibles en vignette, beaucoup moins en grand écran.",
+    indices: [
+      "Format vignette : les défauts disparaissent à petite taille",
+      "Fond minimal, hors de tout contexte vérifiable",
+      "Symétrie du visage inhabituellement forte",
     ],
   },
 ];
