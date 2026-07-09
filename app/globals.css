@@ -158,6 +158,210 @@ body {
 }
 
 /*
+ * ────────────────────────────────────────────────────────────────
+ * MOTION — entrée "signal lock" (accueil) + micro-interactions.
+ * Langage : une transmission corrompue qui se cale — les canaux
+ * teal/bleu arrivent désalignés puis convergent vers le repos.
+ * Uniquement transform/opacity (compositeur, 60 fps). Tout vit
+ * derrière prefers-reduced-motion: no-preference : sans motion,
+ * la page est statique et entièrement visible d'emblée.
+ * ────────────────────────────────────────────────────────────────
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Apparition générique : fondu + montée. Décalage via --enter-delay. */
+  .enter {
+    animation: rise-in 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--enter-delay, 0ms);
+  }
+
+  /* — Accueil ([data-home]) : le wordmark du header se cale — */
+  body:has([data-home]) header .chromatic {
+    animation: ca-lock-base 900ms steps(1, end) both;
+  }
+  body:has([data-home]) header .chromatic::before {
+    animation: ca-lock-teal 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  body:has([data-home]) header .chromatic::after {
+    animation: ca-lock-blue 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  /* Soulignement + sous-titre se posent une fois le signal calé. */
+  body:has([data-home]) .hdr-line {
+    animation: line-in 450ms cubic-bezier(0.16, 1, 0.3, 1) 550ms both;
+  }
+  body:has([data-home]) .hdr-sub {
+    animation: rise-in 500ms cubic-bezier(0.16, 1, 0.3, 1) 680ms both;
+  }
+
+  /* Écho court du lock sur les titres des cartes, calé sur leur arrivée. */
+  [data-home] .enter .chromatic::before {
+    animation: ca-lock-teal-s 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--enter-delay, 0ms) + 120ms);
+  }
+  [data-home] .enter .chromatic::after {
+    animation: ca-lock-blue-s 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--enter-delay, 0ms) + 120ms);
+  }
+
+  /*
+   * Survol carte : secousse numérique brève du titre entier (sauts
+   * discrets, pas de tremblement continu). Animée sur l'élément de BASE
+   * (les canaux ::before/::after gardent leur écart intensifié via la
+   * transition .group:hover existante) → pas de conflit de cascade avec
+   * les animations d'entrée des pseudo-éléments.
+   */
+  .glitch-hover:hover .chromatic {
+    animation: jolt 260ms steps(1, end);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes line-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* Base du wordmark : allumage par à-coups (sync), pas un fondu. */
+@keyframes ca-lock-base {
+  0% {
+    opacity: 0;
+  }
+  7% {
+    opacity: 1;
+    transform: translate3d(0.02em, 0, 0);
+  }
+  11% {
+    opacity: 0.4;
+    transform: translate3d(-0.015em, 0, 0);
+  }
+  15% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  34% {
+    transform: translate3d(0.012em, 0, 0);
+  }
+  38%,
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Canaux du wordmark : large désalignement → convergence amortie. */
+@keyframes ca-lock-teal {
+  0% {
+    opacity: 0;
+    transform: translate3d(-0.45em, 0.07em, 0);
+  }
+  8% {
+    opacity: 1;
+  }
+  38% {
+    transform: translate3d(0.16em, -0.04em, 0);
+  }
+  62% {
+    transform: translate3d(-0.08em, 0.02em, 0);
+  }
+  82% {
+    transform: translate3d(0.03em, -0.01em, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(-0.018em, 0.006em, 0);
+  }
+}
+@keyframes ca-lock-blue {
+  0% {
+    opacity: 0;
+    transform: translate3d(0.45em, -0.07em, 0);
+  }
+  8% {
+    opacity: 1;
+  }
+  38% {
+    transform: translate3d(-0.16em, 0.04em, 0);
+  }
+  62% {
+    transform: translate3d(0.08em, -0.02em, 0);
+  }
+  82% {
+    transform: translate3d(-0.03em, 0.01em, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0.018em, -0.006em, 0);
+  }
+}
+
+/* Version courte/discrète pour les titres de cartes. */
+@keyframes ca-lock-teal-s {
+  0% {
+    opacity: 0;
+    transform: translate3d(-0.16em, 0.03em, 0);
+  }
+  20% {
+    opacity: 1;
+  }
+  55% {
+    transform: translate3d(0.06em, -0.015em, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(-0.018em, 0.006em, 0);
+  }
+}
+@keyframes ca-lock-blue-s {
+  0% {
+    opacity: 0;
+    transform: translate3d(0.16em, -0.03em, 0);
+  }
+  20% {
+    opacity: 1;
+  }
+  55% {
+    transform: translate3d(-0.06em, 0.015em, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0.018em, -0.006em, 0);
+  }
+}
+
+@keyframes jolt {
+  0% {
+    transform: translate3d(0.02em, 0, 0);
+  }
+  25% {
+    transform: translate3d(-0.03em, 0.01em, 0);
+  }
+  50% {
+    transform: translate3d(0.025em, -0.008em, 0);
+  }
+  75% {
+    transform: translate3d(-0.015em, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/*
  * Loader "aberration chromatique" — écran d'attente /demo/live.
  * Deux anneaux teal + bleu tournant en sens inverse à vitesses différentes :
  * leur recouvrement (mix-blend screen) crée un dédoublement chromatique vivant.

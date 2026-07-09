@@ -21,9 +21,9 @@ export default function Header() {
         </span>
         <span
           aria-hidden
-          className="h-px w-28 bg-gradient-to-r from-transparent via-brand-teal to-transparent"
+          className="hdr-line h-px w-28 bg-gradient-to-r from-transparent via-brand-teal to-transparent"
         />
-        <span className="text-center font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted sm:text-[0.7rem] sm:tracking-[0.3em]">
+        <span className="hdr-sub text-center font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted sm:text-[0.7rem] sm:tracking-[0.3em]">
           Agentic Livepoint · Lab IA Onepoint
         </span>
       </Link>
