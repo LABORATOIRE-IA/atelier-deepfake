@@ -9,6 +9,31 @@
 
 export type MediaType = "image" | "video";
 
+/** Thèmes du quiz (P2) — extensible : "paysages", "documents"… */
+export type ThemeId = "visages" | "showroom";
+
+/** Pack de thème affiché sur l'écran de sélection du quiz. */
+export interface ThemePack {
+  id: ThemeId;
+  label: string;
+  description: string;
+}
+
+// Les fiches référencent les thèmes (champ `themes`), pas l'inverse : un
+// nouveau pack = de nouvelles fiches taguées, zéro refactor.
+export const themePacks: ThemePack[] = [
+  {
+    id: "visages",
+    label: "Visages",
+    description: "Portraits réels et visages générés",
+  },
+  {
+    id: "showroom",
+    label: "Vu au showroom",
+    description: "Deepfakes créés par les visiteurs (banque)",
+  },
+];
+
 /** Mode 1 — une manche du quiz "Vrai ou Deepfake ?" */
 export interface QuizRound {
   id: string;
@@ -20,6 +45,13 @@ export interface QuizRound {
   explanation: string;
   /** Indices/points d'attention pour repérer le trucage */
   indices: string[];
+  /**
+   * Thèmes d'appartenance (multi). OPTIONNEL car les rounds de la banque
+   * (/api/bank/quiz) reçoivent leurs thèmes CÔTÉ CLIENT (BANK_THEMES,
+   * app/quiz/page.tsx) — le serveur ne connaît pas les thèmes. Les fiches
+   * statiques ci-dessous doivent toutes le renseigner.
+   */
+  themes?: ThemeId[];
 }
 
 /**
@@ -63,6 +95,7 @@ export const quizRounds: QuizRound[] = [
   // — REAL (photos authentiques, Unsplash) —
   {
     id: "quiz-1315",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-1315.jpg",
     isDeepfake: false,
@@ -76,6 +109,7 @@ export const quizRounds: QuizRound[] = [
   },
   {
     id: "quiz-2612",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-2612.jpg",
     isDeepfake: false,
@@ -89,6 +123,7 @@ export const quizRounds: QuizRound[] = [
   },
   {
     id: "quiz-2678",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-2678.jpg",
     isDeepfake: false,
@@ -102,6 +137,7 @@ export const quizRounds: QuizRound[] = [
   },
   {
     id: "quiz-740",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-740.jpg",
     isDeepfake: false,
@@ -115,6 +151,7 @@ export const quizRounds: QuizRound[] = [
   },
   {
     id: "quiz-437",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-437.jpg",
     isDeepfake: false,
@@ -129,6 +166,7 @@ export const quizRounds: QuizRound[] = [
   // — FAKE (label CSV : générés, StyleGAN3) —
   {
     id: "quiz-2858",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-2858.jpg",
     isDeepfake: true,
@@ -142,6 +180,7 @@ export const quizRounds: QuizRound[] = [
   },
   {
     id: "quiz-2976",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-2976.jpg",
     isDeepfake: true,
@@ -155,6 +194,7 @@ export const quizRounds: QuizRound[] = [
   },
   {
     id: "quiz-2993",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-2993.jpg",
     isDeepfake: true,
@@ -168,6 +208,7 @@ export const quizRounds: QuizRound[] = [
   },
   {
     id: "quiz-3048",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-3048.jpg",
     isDeepfake: true,
@@ -181,6 +222,7 @@ export const quizRounds: QuizRound[] = [
   },
   {
     id: "quiz-2836",
+    themes: ["visages"],
     mediaType: "image",
     mediaUrl: "/quiz/quiz-2836.jpg",
     isDeepfake: true,
