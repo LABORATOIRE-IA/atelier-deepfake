@@ -23,14 +23,20 @@ export interface QuizRound {
 }
 
 /**
- * Scène cible prédéfinie pour "Créer mon deepfake (live)".
- * Option A (scènes contrôlées) : pas de dépôt libre. `file` est une image
- * placée dans public/targets/. Sert de base_image_url au face-swap.
+ * Scène prédéfinie pour "Créer mon deepfake (live)".
+ * Depuis la migration Ideogram : une scène est un PROMPT de génération
+ * (fal-ai/ideogram/character recompose la scène autour du visage de
+ * référence). Les prompts sont résolus CÔTÉ SERVEUR uniquement — le client
+ * n'envoie jamais de prompt (même logique anti-abus que l'ancienne
+ * whitelist de fichiers).
  */
 export interface Scene {
   id: string;
   label: string;
-  file: string; // nom de fichier dans public/targets/
+  /** Prompt de scène (anglais), envoyé à fal-ai/ideogram/character */
+  prompt: string;
+  /** Vignette illustrative optionnelle dans public/targets/ (plus une image cible) */
+  thumb?: string;
 }
 
 /** Mode 2b — fiche célébrité (deepfake existant présenté, non généré) */
@@ -227,16 +233,37 @@ export const celebrityCards: CelebrityCard[] = [
   },
 ];
 
-// ─── Scènes prédéfinies "Créer mon deepfake" (Bloc 5+) ────────────────
-// 4 scènes : JT, Tribune, LinkedIn, Magazine.
-// Pour en ajouter une : déposer l'image dans public/targets/ puis ajouter
-// une entrée ici. Une image déclarée mais absente est gérée côté UI (ignorée
-// / placeholder) et refusée proprement côté route.
+// ─── Scènes prédéfinies "Créer mon deepfake" (migration Ideogram) ─────
+// 4 prompts de scène "quotidien" — les 3 premiers repris tels quels du
+// bench validé (scripts/bench-ideogram.mjs), le 4e (jt) rédigé dans le
+// même style : REALISTIC, une personne centrale = la référence.
+// Les 4 scènes sont TOUTES générées à chaque session (1 appel par scène,
+// en parallèle) ; le visiteur choisit sa préférée à l'écran résultat.
+// Pour en ajouter une : une entrée ici suffit (thumb optionnelle dans
+// public/targets/).
 export const scenes: Scene[] = [
-  { id: "jt", label: "Présentateur JT", file: "jt.jpg" },
-  { id: "tribune", label: "Tribune politique", file: "tribune.jpg" },
-  { id: "linkedin", label: "Photo LinkedIn", file: "linkedin.jpg" },
-  { id: "magazine", label: "Couverture magazine", file: "magazine.jpg" },
-  // Pour en ajouter : déposer l'image dans public/targets/ + une ligne ici
-  // (file = nom de fichier EXACT, casse/extension comprises).
+  {
+    id: "team-office",
+    label: "Photo d'équipe",
+    prompt:
+      "professional team photo in a modern open-space office, group of colleagues smiling at camera",
+  },
+  {
+    id: "badge",
+    label: "Badge employé",
+    prompt: "employee ID badge photo, corporate headshot, neutral background",
+    thumb: "linkedin.jpg", // portrait corporate existant, illustre bien le badge
+  },
+  {
+    id: "family",
+    label: "Photo de famille",
+    prompt: "family photo in a living room, casual setting, natural light",
+  },
+  {
+    id: "jt",
+    label: "Présentateur JT",
+    prompt:
+      "TV news anchor presenting the evening news on a television studio set, sitting at the anchor desk, professional studio lighting",
+    thumb: "jt.jpg",
+  },
 ];

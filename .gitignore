@@ -48,3 +48,7 @@ next-env.d.ts
 
 # dataset source du quiz (artefact local, jamais committé)
 FINAL_DATASET.csv
+
+# images du bench Ideogram (visages → confidentialité, ne pas committer)
+/scripts/bench-input/
+/scripts/bench-output/

@@ -3,42 +3,47 @@ import { fal } from "@fal-ai/client";
 import { scenes } from "@/lib/content";
 
 /*
- * POST /api/faceswap — appel fal.ai CÔTÉ SERVEUR (Bloc 5+).
+ * POST /api/faceswap — appel fal.ai CÔTÉ SERVEUR (migration Ideogram).
  *
  * SÉCURITÉ : FAL_KEY est lue depuis l'env serveur et n'est JAMAIS exposée au
- * navigateur. Le client envoie la photo (dataURL) + l'id de scène ; clé serveur.
+ * navigateur. Le client n'envoie QUE la photo (dataURL) ; les prompts de
+ * scène sont résolus ici depuis la whitelist `scenes` — le client ne peut
+ * jamais injecter de prompt (même logique anti-abus que l'ancienne whitelist
+ * de fichiers cibles).
  *
- * Entrée (JSON) : { photo: dataURL, scene: <id de scène> }
- * Modèle : fal-ai/face-swap.
- *   - swap_image_url = LE VISAGE à utiliser  → photo du visiteur
- *   - base_image_url = la SCÈNE cible          → public/targets/<scene.file>
- *
- * La scène est résolue via la WHITELIST `scenes` (id → fichier) : pas de chemin
- * arbitraire venant du client (anti path-traversal).
+ * Entrée (JSON) : { photo: dataURL }
+ * Modèle : fal-ai/ideogram/character — GÉNÈRE une scène autour du visage de
+ * référence (vs swap dans une image existante avant la migration).
+ *   - reference_image_urls = [photo du visiteur]  (1 seule réf. supportée)
+ *   - prompt               = scene.prompt (whitelist serveur)
+ *   - style REALISTIC      = évite le rendu illustration du mode AUTO
+ * Les 4 scènes sont générées EN PARALLÈLE (Promise.allSettled), timeout
+ * INDIVIDUEL par appel — latence totale ≈ 1 appel, pas 4×.
  *
  * Réponses :
- *   200 { url, width, height }        succès (résultat validé)
- *   400 { error, message }            photo invalide / scène inconnue ou absente
- *   500 { error, message }            FAL_KEY absente côté serveur
- *   502 { error:"fal_error", ... }    échec fal / résultat invalide ou vide
- *   504 { error:"generation_timeout" } fal trop lent (> TIMEOUT_MS)
+ *   200 { results: [{ scene, label, url }] }  ≥ 1 scène réussie (succès seuls,
+ *                                             échecs partiels loggés serveur)
+ *   400 { error, message }                    photo invalide
+ *   500 { error, message }                    FAL_KEY absente côté serveur
+ *   502 { error:"fal_error", ... }            0 scène réussie
+ *   504 { error:"generation_timeout" }        0 réussie ET tous les échecs
+ *                                             sont des timeouts
  */
 
 export const runtime = "nodejs"; // fs/Buffer + SDK fal → runtime Node
-// maxDuration > TIMEOUT_MS : notre JSON d'erreur revient AVANT que la plateforme
-// ne tue la fonction (sinon 504 brut sans corps). Projet sur une ÉQUIPE Vercel
-// (= Pro+, limite 300 s ; le plafond 60 s ne concerne QUE les comptes Hobby
-// perso) → 130 s OK en prod. À confirmer dans le dashboard si doute sur le tier.
+// maxDuration > timeout par appel : notre JSON d'erreur revient AVANT que la
+// plateforme ne tue la fonction (sinon 504 brut sans corps). Projet sur une
+// ÉQUIPE Vercel (= Pro+, limite 300 s) → 130 s OK en prod.
 export const maxDuration = 130;
 // Empêche Next de cacher/mémoïser les requêtes de cette route (sinon le polling
 // de statut de fal.subscribe voit une réponse figée et ne finit jamais).
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const MODEL = "fal-ai/face-swap";
-// fal peut être lent en pic de charge (latence observée très variable :
-// ~16 s → 126 s) → marge large, sans bloquer à l'infini.
-const TIMEOUT_MS = 120_000;
+const MODEL = "fal-ai/ideogram/character";
+// Timeout INDIVIDUEL par appel (les 4 tournent en parallèle). Marge sous
+// maxDuration pour que les timeouts remontent en JSON propre.
+const TIMEOUT_MS = 100_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -66,13 +71,10 @@ export async function POST(request: Request) {
     fetch(input, { ...init, cache: "no-store" });
   fal.config({ credentials: key, fetch: noStoreFetch });
 
-  // 1) Corps : photo visiteur (dataURL) + id de scène
+  // 1) Corps : photo visiteur (dataURL) seule
   let photo: unknown;
-  let sceneParam: unknown;
   try {
-    const body = await request.json();
-    photo = body?.photo;
-    sceneParam = body?.scene;
+    photo = (await request.json())?.photo;
   } catch {
     /* corps invalide → traité juste après */
   }
@@ -83,77 +85,72 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2) Résolution de la scène via la WHITELIST (id ou fichier déclaré).
-  //    Défaut = première scène si rien n'est fourni.
-  const scene =
-    typeof sceneParam === "string"
-      ? scenes.find((s) => s.id === sceneParam || s.file === sceneParam)
-      : scenes[0];
-  if (!scene) {
-    return NextResponse.json(
-      { error: "invalid_scene", message: "Scène inconnue." },
-      { status: 400 },
-    );
-  }
-
-  // 3) Chargement de l'image de scène (public/targets/<scene.file>)
-  const origin = new URL(request.url).origin;
-  let baseFile: File;
-  try {
-    const r = await fetch(`${origin}/targets/${scene.file}`);
-    if (!r.ok) throw new Error("not found");
-    const buf = Buffer.from(await r.arrayBuffer());
-    baseFile = new File([buf], scene.file, {
-      type: r.headers.get("content-type") || "image/jpeg",
-    });
-  } catch {
-    return NextResponse.json(
-      {
-        error: "target_missing",
-        message: `Image de scène introuvable (public/targets/${scene.file}).`,
-      },
-      { status: 400 },
-    );
-  }
-
-  // 4) Upload des 2 images vers fal.storage + appel du modèle
+  // 2) Upload de la référence vers fal.storage (l'API attend des URLs)
+  let refUrl: string;
   try {
     const comma = photo.indexOf(",");
-    const swapBuf = Buffer.from(photo.slice(comma + 1), "base64");
-    const swapFile = new File([swapBuf], "source.jpg", { type: "image/jpeg" });
-
-    const [swapUrl, baseUrl] = await Promise.all([
-      fal.storage.upload(swapFile),
-      fal.storage.upload(baseFile),
-    ]);
-
-    const result = await withTimeout(
-      fal.subscribe(MODEL, {
-        input: { swap_image_url: swapUrl, base_image_url: baseUrl },
-      }),
-      TIMEOUT_MS,
-    );
-
-    // 5) Vérifie que le swap a VRAIMENT abouti : URL exploitable + dims > 0.
-    const image = result?.data?.image;
-    const url = image?.url;
-    const width = image?.width ?? 0;
-    const height = image?.height ?? 0;
-    if (!url || width <= 0 || height <= 0) {
-      console.error("[faceswap] résultat invalide:", JSON.stringify(image));
-      return NextResponse.json(
-        {
-          error: "fal_error",
-          message: "La génération a échoué. Réessayez.",
-        },
-        { status: 502 },
-      );
-    }
-    return NextResponse.json({ url, width, height });
+    const refBuf = Buffer.from(photo.slice(comma + 1), "base64");
+    const refFile = new File([refBuf], "reference.jpg", {
+      type: "image/jpeg",
+    });
+    refUrl = await fal.storage.upload(refFile);
   } catch (err) {
-    const timedOut = err instanceof Error && err.message === "timeout";
-    console.error("[faceswap]", timedOut ? "timeout" : err);
-    return timedOut
+    console.error("[faceswap] échec upload référence:", err);
+    return NextResponse.json(
+      { error: "fal_error", message: "Échec de la génération. Réessayez." },
+      { status: 502 },
+    );
+  }
+
+  // 3) Les 4 scènes en PARALLÈLE, timeout individuel par appel
+  const settled = await Promise.allSettled(
+    scenes.map(async (scene) => {
+      const t0 = Date.now();
+      const result = await withTimeout(
+        fal.subscribe(MODEL, {
+          input: {
+            prompt: scene.prompt,
+            reference_image_urls: [refUrl],
+            style: "REALISTIC",
+          },
+        }),
+        TIMEOUT_MS,
+      );
+      // Sortie Ideogram : { images: [{ url, ... }], seed } — pas de
+      // width/height garantis, on valide sur la seule présence de l'URL.
+      const url = (result?.data as { images?: { url?: string }[] })
+        ?.images?.[0]?.url;
+      if (!url) throw new Error("réponse sans image");
+      console.log(`[faceswap] ${scene.id} OK en ${Date.now() - t0} ms`);
+      return { scene: scene.id, label: scene.label, url };
+    }),
+  );
+
+  // 4) Tolérance aux échecs partiels : ≥ 1 succès = 200 (succès seuls).
+  const results = settled
+    .filter(
+      (s): s is PromiseFulfilledResult<{ scene: string; label: string; url: string }> =>
+        s.status === "fulfilled",
+    )
+    .map((s) => s.value);
+  const failures = settled
+    .map((s, i) => ({ s, scene: scenes[i].id }))
+    .filter(({ s }) => s.status === "rejected")
+    .map(({ s, scene }) => ({
+      scene,
+      reason:
+        (s as PromiseRejectedResult).reason instanceof Error
+          ? ((s as PromiseRejectedResult).reason as Error).message
+          : String((s as PromiseRejectedResult).reason),
+    }));
+  failures.forEach(({ scene, reason }) =>
+    console.error(`[faceswap] échec scène ${scene}: ${reason}`),
+  );
+
+  if (results.length === 0) {
+    const allTimedOut =
+      failures.length > 0 && failures.every(({ reason }) => reason === "timeout");
+    return allTimedOut
       ? NextResponse.json(
           {
             error: "generation_timeout",
@@ -166,4 +163,5 @@ export async function POST(request: Request) {
           { status: 502 },
         );
   }
+  return NextResponse.json({ results });
 }
