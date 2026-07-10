@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import MediaFrame from "@/app/components/MediaFrame";
 import Lightbox from "@/app/components/Lightbox";
-import { scenes } from "@/lib/content";
 
 /*
- * /demo/live — "Créer mon deepfake (live)" (Bloc 4 + câblage fal.ai Bloc 5).
+ * /demo/live — "Créer mon deepfake (live)" (migration Ideogram).
  *
  * Machine à états client (useState). La génération est RÉELLE : la photo est
  * envoyée à notre route serveur /api/faceswap, qui appelle fal.ai (la clé
- * FAL_KEY reste côté serveur, jamais dans le navigateur).
+ * FAL_KEY reste côté serveur, jamais dans le navigateur). Les 4 scènes sont
+ * générées d'office côté serveur (prompts serveur-only, succès partiels
+ * possibles) : plus d'étape de choix de scène — le visiteur choisit sa
+ * préférée à l'écran résultat.
  *
  * HYGIÈNE DONNÉES (cohérent avec le consentement) :
  *  - La photo est capturée en mémoire (dataURL), puis envoyée à fal.ai (service
@@ -25,18 +27,14 @@ import { scenes } from "@/lib/content";
  *    En dev, http://localhost est sécurisé → OK.
  */
 
-type Step =
-  | "consent"
-  | "scene"
-  | "capture"
-  | "review"
-  | "generating"
-  | "result";
+type Step = "consent" | "capture" | "review" | "generating" | "result";
 type CameraError = "denied" | "notfound" | "unsupported" | "unknown" | null;
+
+/** Une scène générée renvoyée par la route (succès partiels : 1 à 4). */
+type SceneResult = { scene: string; label: string; url: string };
 
 const STEPS: { key: Step; label: string }[] = [
   { key: "consent", label: "Consentement" },
-  { key: "scene", label: "Scène" },
   { key: "capture", label: "Caméra" },
   { key: "review", label: "Validation" },
   { key: "generating", label: "Génération" },
@@ -54,9 +52,8 @@ export default function DemoLivePage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("consent");
   const [consented, setConsented] = useState(false);
-  const [sceneId, setSceneId] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [results, setResults] = useState<SceneResult[] | null>(null);
   const [cameraError, setCameraError] = useState<CameraError>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const [genAttempt, setGenAttempt] = useState(0);
@@ -126,15 +123,17 @@ export default function DemoLivePage() {
         const res = await fetch("/api/faceswap", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ photo, scene: sceneId }),
+          body: JSON.stringify({ photo }),
           signal: controller.signal,
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok)
           throw new Error(data?.message || "Échec de la génération. Réessayez.");
-        if (!data?.url) throw new Error("Aucun résultat reçu.");
+        // Succès partiels possibles : la route ne renvoie que les scènes réussies.
+        if (!Array.isArray(data?.results) || data.results.length === 0)
+          throw new Error("Aucun résultat reçu.");
         if (!cancelled) {
-          setResultUrl(data.url);
+          setResults(data.results);
           setStep("result");
         }
       } catch (e) {
@@ -155,7 +154,7 @@ export default function DemoLivePage() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [step, photo, sceneId, genAttempt]);
+  }, [step, photo, genAttempt]);
 
   const takePhoto = useCallback(() => {
     const video = videoRef.current;
@@ -175,12 +174,11 @@ export default function DemoLivePage() {
     setStep("review"); // le cleanup de l'effet coupe la caméra
   }, []);
 
-  // Réinitialise TOUT (efface photo + résultat de la mémoire, coupe la caméra).
+  // Réinitialise TOUT (efface photo + résultats de la mémoire, coupe la caméra).
   const reset = useCallback(() => {
     stopCamera();
     setPhoto(null);
-    setResultUrl(null);
-    setSceneId(null);
+    setResults(null);
     setGenError(null);
     setGenAttempt(0);
     setConsented(false);
@@ -190,8 +188,7 @@ export default function DemoLivePage() {
   const finish = useCallback(() => {
     stopCamera();
     setPhoto(null);
-    setResultUrl(null);
-    setSceneId(null);
+    setResults(null);
     setConsented(false);
     router.push("/demo");
   }, [stopCamera, router]);
@@ -204,14 +201,6 @@ export default function DemoLivePage() {
         <Consent
           consented={consented}
           onToggle={setConsented}
-          onContinue={() => setStep("scene")}
-        />
-      )}
-
-      {step === "scene" && (
-        <SceneSelect
-          selectedId={sceneId}
-          onSelect={setSceneId}
           onContinue={() => setStep("capture")}
         />
       )}
@@ -250,10 +239,10 @@ export default function DemoLivePage() {
         />
       )}
 
-      {step === "result" && resultUrl && photo && (
+      {step === "result" && results && results.length > 0 && photo && (
         <Result
           photo={photo}
-          resultUrl={resultUrl}
+          results={results}
           onRestart={reset}
           onFinish={finish}
         />
@@ -306,8 +295,9 @@ function Consent({
         Créer mon deepfake
       </h2>
       <p className="text-lg text-mist/90">
-        Nous allons utiliser votre image pour générer une démonstration de
-        deepfake, en direct, à des fins pédagogiques.
+        Nous allons utiliser votre image pour générer, en direct, plusieurs
+        scènes de démonstration de deepfake autour de votre visage, à des fins
+        pédagogiques.
       </p>
 
       <ul className="w-full space-y-3 rounded-2xl border border-line bg-surface/60 p-6 text-left">
@@ -351,103 +341,7 @@ function Consent({
   );
 }
 
-/* ── Étape 2 — Choix de la scène (vignettes prédéfinies) ───────────── */
-function SceneSelect({
-  selectedId,
-  onSelect,
-  onContinue,
-}: {
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onContinue: () => void;
-}) {
-  // Image déclarée mais absente → marquée "broken" (via onError) : on ne casse
-  // pas l'UI et on empêche sa sélection.
-  const [broken, setBroken] = useState<Set<string>>(new Set());
-  const markBroken = (id: string) =>
-    setBroken((prev) => new Set(prev).add(id));
-
-  return (
-    <div className="flex w-full flex-col items-center gap-8 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <span className="font-mono text-xs uppercase tracking-[0.28em] text-brand-teal/80">
-          Choisir une scène
-        </span>
-        <h2
-          className="chromatic text-3xl font-bold tracking-tight sm:text-4xl"
-          data-text="Choisir une scène"
-        >
-          Choisir une scène
-        </h2>
-        <p className="max-w-md text-sm text-muted">
-          Sélectionnez le décor dans lequel votre visage sera transposé.
-        </p>
-      </div>
-
-      <ul className="grid w-full grid-cols-2 gap-4 sm:grid-cols-3">
-        {scenes.map((s) => {
-          const isBroken = broken.has(s.id);
-          const isSelected = selectedId === s.id;
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                disabled={isBroken}
-                onClick={() => onSelect(s.id)}
-                aria-pressed={isSelected}
-                className={`group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-surface/70 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
-                  isSelected
-                    ? "border-brand-teal shadow-[0_0_36px_-10px_#00a39a]"
-                    : "border-line hover:border-brand-teal/50"
-                }`}
-              >
-                <div className="relative aspect-video w-full bg-gradient-to-br from-surface to-surface-2">
-                  {isBroken ? (
-                    <span className="absolute inset-0 flex items-center justify-center px-3 text-center font-mono text-[0.7rem] uppercase tracking-widest text-muted">
-                      image manquante
-                    </span>
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={`/targets/${s.file}`}
-                      alt={s.label}
-                      onError={() => markBroken(s.id)}
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                  {isSelected && (
-                    <span className="absolute right-2 top-2 rounded-full bg-brand-teal px-2 py-0.5 font-mono text-[0.65rem] font-medium text-white">
-                      ✓ choisie
-                    </span>
-                  )}
-                </div>
-                <span className="p-3 text-sm font-medium text-mist">
-                  {s.label}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
-      <div className="flex flex-wrap items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={onContinue}
-          disabled={!selectedId || broken.has(selectedId)}
-          className={PRIMARY}
-        >
-          Continuer
-        </button>
-        <Link href="/demo" className={GHOST}>
-          Annuler
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-/* ── Étape 3 — Capture webcam ──────────────────────────────────────── */
+/* ── Étape 2 — Capture webcam ──────────────────────────────────────── */
 function Capture({
   videoRef,
   cameraError,
@@ -495,8 +389,20 @@ function Capture({
             playsInline
             className="h-full w-full -scale-x-100 object-cover"
           />
+          {/* Guide de cadrage : ovale clair, extérieur assombri par le
+              box-shadow géant (rogné par l'overflow-hidden du cadre).
+              Statique volontairement → rien à gérer pour reduced-motion.
+              La ressemblance Ideogram dépend de la qualité de la référence
+              frontale : le guide n'est pas décoratif. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[80%] w-[28%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-2 border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+          />
           <span className="absolute left-4 top-4 font-mono text-[0.7rem] uppercase tracking-widest text-mist/70">
             ● Caméra en direct
+          </span>
+          <span className="absolute left-4 top-9 max-w-[40%] font-mono text-[0.7rem] leading-snug text-mist/90">
+            Regardez l&apos;objectif, visage dans l&apos;ovale
           </span>
         </div>
       )}
@@ -533,8 +439,9 @@ function Review({
         className={FRAME}
       />
       <p className="max-w-md text-center text-sm text-muted">
-        En générant, cette photo sera envoyée à fal.ai pour produire la
-        démonstration, puis supprimée à la fin.
+        En générant, cette photo sera envoyée à fal.ai : plusieurs scènes
+        seront générées autour de votre visage, puis tout est supprimé à la
+        fin.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-4">
         <button type="button" onClick={onGenerate} className={PRIMARY}>
@@ -585,13 +492,13 @@ function Generating({
 }
 
 // Messages COSMÉTIQUES (on ne connaît pas le vrai statut fal) : juste pour
-// faire patienter pendant les ~20-45 s d'attente. On avance puis on reste
+// faire patienter pendant les ~15-30 s d'attente. On avance puis on reste
 // sur le dernier (le spinner continue de tourner → jamais "figé").
 const GEN_MESSAGES = [
   "Analyse du visage…",
   "Cartographie des traits…",
-  "Application du modèle…",
-  "Fusion des images…",
+  "Génération des scènes…",
+  "Composition des décors…",
   "Finalisation…",
 ];
 
@@ -631,15 +538,15 @@ function GeneratingLoader() {
   );
 }
 
-/* ── Étape 5 — Résultat AVANT / APRÈS (deepfake réel, présenté en démo) ─ */
+/* ── Étape 5 — Résultat : grille des scènes générées (1 à 4) ────────── */
 function Result({
   photo,
-  resultUrl,
+  results,
   onRestart,
   onFinish,
 }: {
   photo: string;
-  resultUrl: string;
+  results: SceneResult[];
   onRestart: () => void;
   onFinish: () => void;
 }) {
@@ -647,74 +554,106 @@ function Result({
   const [zoom, setZoom] = useState<{ src: string; caption: string } | null>(
     null,
   );
+  // Scène "préférée" (purement visuel pour l'instant — la banque quiz
+  // viendra en P1). Clic sur l'image = lightbox ; toggle dédié = sélection.
+  const [favorite, setFavorite] = useState<string | null>(null);
 
   return (
     <div className="flex w-full flex-col items-center gap-6">
-      {/* Contrôle visuel avant/après : on voit d'un coup d'œil que le visage a
-          bien été transposé dans la scène (pas de reconnaissance auto).
-          Clic sur une image → lightbox plein écran. */}
-      <div className="grid w-full gap-4 sm:grid-cols-2">
-        <figure className="flex flex-col gap-2">
-          <figcaption className="text-center font-mono text-xs uppercase tracking-[0.28em] text-muted">
-            Avant — vous
-          </figcaption>
-          <button
-            type="button"
-            onClick={() => setZoom({ src: photo, caption: "Avant — vous" })}
-            className="block aspect-video w-full cursor-zoom-in"
-            aria-label="Agrandir la photo « avant »"
-          >
-            <MediaFrame
-              mediaType="image"
-              mediaUrl={photo}
-              label="Avant"
-              alt="Votre photo capturée"
-              className="h-full w-full"
-            />
-          </button>
-        </figure>
+      {/* Photo d'origine en petit rappel : on voit d'un coup d'œil que les
+          scènes ont été générées autour du même visage. */}
+      <figure className="flex w-full max-w-[220px] flex-col gap-2">
+        <figcaption className="text-center font-mono text-xs uppercase tracking-[0.28em] text-muted">
+          Votre photo
+        </figcaption>
+        <button
+          type="button"
+          onClick={() => setZoom({ src: photo, caption: "Votre photo" })}
+          className="block aspect-video w-full cursor-zoom-in"
+          aria-label="Agrandir votre photo d'origine"
+        >
+          <MediaFrame
+            mediaType="image"
+            mediaUrl={photo}
+            label="Vous"
+            alt="Votre photo capturée"
+            className="h-full w-full"
+          />
+        </button>
+      </figure>
 
-        <figure className="flex flex-col gap-2">
-          <figcaption className="text-center font-mono text-xs uppercase tracking-[0.28em] text-brand-teal/80">
-            Après — deepfake
-          </figcaption>
-          <button
-            type="button"
-            onClick={() =>
-              setZoom({
-                src: resultUrl,
-                caption: "Après — deepfake · démonstration",
-              })
-            }
-            className="relative block aspect-video w-full cursor-zoom-in"
-            aria-label="Agrandir le résultat « après »"
-          >
-            <MediaFrame
-              mediaType="image"
-              mediaUrl={resultUrl}
-              label="Résultat"
-              alt="Démonstration de deepfake générée"
-              className="h-full w-full"
-            />
-            <span className="pointer-events-none absolute left-3 top-3 rounded-full border border-brand-blue/60 bg-ink/70 px-2.5 py-0.5 font-mono text-[0.65rem] uppercase tracking-widest text-mist">
-              Démonstration · deepfake
-            </span>
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/90 to-transparent p-3 text-center">
-              <span
-                className="chromatic text-base font-bold tracking-tight sm:text-lg"
-                data-text="DEEPFAKE — démonstration"
+      {/* Grille adaptée au nombre de succès (1 à 4) : pas de case vide.
+          Clic sur l'image → lightbox ; toggle « préférée » par carte. */}
+      <ul
+        className={`grid w-full gap-4 ${results.length > 1 ? "sm:grid-cols-2" : "sm:max-w-xl"}`}
+      >
+        {results.map((r) => {
+          const isFavorite = favorite === r.scene;
+          return (
+            <li key={r.scene}>
+              <figure
+                className={`flex flex-col gap-2 rounded-2xl border p-3 transition-colors ${
+                  isFavorite
+                    ? "border-brand-teal shadow-[0_0_36px_-10px_#00a39a]"
+                    : "border-line"
+                }`}
               >
-                DEEPFAKE — démonstration
-              </span>
-            </div>
-          </button>
-        </figure>
-      </div>
+                <figcaption className="text-center font-mono text-xs uppercase tracking-[0.28em] text-brand-teal/80">
+                  {r.label}
+                </figcaption>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setZoom({
+                      src: r.url,
+                      caption: `${r.label} — deepfake · démonstration`,
+                    })
+                  }
+                  className="relative block aspect-video w-full cursor-zoom-in"
+                  aria-label={`Agrandir « ${r.label} »`}
+                >
+                  <MediaFrame
+                    mediaType="image"
+                    mediaUrl={r.url}
+                    label="Résultat"
+                    alt={`Scène « ${r.label} » générée autour de votre visage`}
+                    className="h-full w-full"
+                  />
+                  <span className="pointer-events-none absolute left-3 top-3 rounded-full border border-brand-blue/60 bg-ink/70 px-2.5 py-0.5 font-mono text-[0.65rem] uppercase tracking-widest text-mist">
+                    Démonstration · deepfake
+                  </span>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/90 to-transparent p-3 text-center">
+                    <span
+                      className="chromatic text-sm font-bold tracking-tight sm:text-base"
+                      data-text="DEEPFAKE — démonstration"
+                    >
+                      DEEPFAKE — démonstration
+                    </span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFavorite(isFavorite ? null : r.scene)}
+                  aria-pressed={isFavorite}
+                  className={`self-center rounded-full border px-4 py-1.5 font-mono text-xs transition-colors ${
+                    isFavorite
+                      ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
+                      : "border-line text-muted hover:border-brand-teal/50 hover:text-mist"
+                  }`}
+                >
+                  {isFavorite ? "★ Ma préférée" : "☆ Ma préférée"}
+                </button>
+              </figure>
+            </li>
+          );
+        })}
+      </ul>
 
       <p className="max-w-lg text-center text-sm text-muted">
-        Démonstration pédagogique de deepfake, générée via fal.ai. Comparez
-        l&apos;avant / après (cliquez pour agrandir) : votre visage a été
-        transposé dans la scène. Vos images sont supprimées quand vous terminez.
+        Démonstration pédagogique de deepfake, générée via fal.ai : ces scènes
+        ont été générées autour de votre visage, à partir d&apos;une seule
+        photo (cliquez pour agrandir). Vos images sont supprimées quand vous
+        terminez.
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-4">
