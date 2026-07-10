@@ -39,14 +39,17 @@ function shuffle<T>(arr: readonly T[]): T[] {
   return a;
 }
 
-// Tirage d'une session : 2 REAL + 2 FAKE au hasard dans chaque pool,
-// puis mélange des 4 pour que l'ordre vrai/faux soit imprévisible.
-function drawRounds(): QuizRound[] {
+// Tirage d'une session : 2 REAL + 2 FAKE au hasard, puis mélange des 4 pour
+// que l'ordre vrai/faux soit imprévisible. Le pool FAKE met la BANQUE en
+// tête (images générées dans le showroom, P1) et complète en statique —
+// bankPool vide = comportement d'origine, 100 % statique.
+function drawRounds(bankPool: readonly QuizRound[]): QuizRound[] {
   const real = quizRounds.filter((r) => !r.isDeepfake);
   const fake = quizRounds.filter((r) => r.isDeepfake);
+  const fakePool = [...shuffle(bankPool), ...shuffle(fake)];
   return shuffle([
     ...shuffle(real).slice(0, REAL_PER_SESSION),
-    ...shuffle(fake).slice(0, FAKE_PER_SESSION),
+    ...fakePool.slice(0, FAKE_PER_SESSION),
   ]);
 }
 
@@ -57,13 +60,34 @@ export default function QuizPage() {
   // Ordre mélangé, figé pour toute la session. Re-mélangé à chaque "Commencer"
   // / "Recommencer". (Vide tant qu'on n'a pas démarré : pas de shuffle au SSR.)
   const [order, setOrder] = useState<QuizRound[]>([]);
+  // Pool dynamique de la banque (P1) : chargé en arrière-plan au montage.
+  // Échec, lenteur ou pool vide = [], et le tirage reste 100 % statique —
+  // AUCUN état de chargement, le facilitateur peut démarrer immédiatement.
+  const [bankPool, setBankPool] = useState<QuizRound[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/bank/quiz", { cache: "no-store" });
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data?.rounds))
+          setBankPool(data.rounds);
+      } catch {
+        /* silencieux : fallback statique */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const start = useCallback(() => {
-    setOrder(drawRounds());
+    setOrder(drawRounds(bankPool));
     setCurrent(0);
     setRevealed(false);
     setPhase("round");
-  }, []);
+  }, [bankPool]);
 
   // Avancer : question -> révélation -> manche suivante -> fin
   const next = useCallback(() => {

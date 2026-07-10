@@ -52,6 +52,9 @@ export default function DemoLivePage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("consent");
   const [consented, setConsented] = useState(false);
+  // Opt-in BANQUE (P1) : séparé, optionnel, jamais pré-coché. Conditionne
+  // uniquement l'affichage du bloc d'envoi à l'écran résultat.
+  const [bankConsent, setBankConsent] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
   const [results, setResults] = useState<SceneResult[] | null>(null);
   const [cameraError, setCameraError] = useState<CameraError>(null);
@@ -182,6 +185,7 @@ export default function DemoLivePage() {
     setGenError(null);
     setGenAttempt(0);
     setConsented(false);
+    setBankConsent(false);
     setStep("consent");
   }, [stopCamera]);
 
@@ -190,6 +194,7 @@ export default function DemoLivePage() {
     setPhoto(null);
     setResults(null);
     setConsented(false);
+    setBankConsent(false);
     router.push("/demo");
   }, [stopCamera, router]);
 
@@ -201,6 +206,8 @@ export default function DemoLivePage() {
         <Consent
           consented={consented}
           onToggle={setConsented}
+          bankConsent={bankConsent}
+          onToggleBank={setBankConsent}
           onContinue={() => setStep("capture")}
         />
       )}
@@ -243,6 +250,7 @@ export default function DemoLivePage() {
         <Result
           photo={photo}
           results={results}
+          bankConsent={bankConsent}
           onRestart={reset}
           onFinish={finish}
         />
@@ -277,10 +285,14 @@ function Stepper({ step }: { step: Step }) {
 function Consent({
   consented,
   onToggle,
+  bankConsent,
+  onToggleBank,
   onContinue,
 }: {
   consented: boolean;
   onToggle: (v: boolean) => void;
+  bankConsent: boolean;
+  onToggleBank: (v: boolean) => void;
   onContinue: () => void;
 }) {
   return (
@@ -305,7 +317,7 @@ function Consent({
           "Votre image est utilisée uniquement pour cette démonstration.",
           "Pour la générer, elle est envoyée à un service tiers, fal.ai.",
           "Elle n'est ni diffusée ni publiée, et n'est pas conservée par nous.",
-          "Photo et résultat sont supprimés à la fin de la session.",
+          "Photo et résultat sont supprimés à la fin de la session — sauf l'image que vous choisissez d'ajouter à la banque (optionnel ci-dessous).",
         ].map((line) => (
           <li key={line} className="flex gap-3 text-sm text-mist/90">
             <span aria-hidden className="font-mono text-brand-teal">
@@ -324,6 +336,26 @@ function Consent({
           className="h-5 w-5 shrink-0 accent-[#00a39a]"
         />
         J&apos;ai compris et je consens
+      </label>
+
+      {/* Opt-in BANQUE — OPTIONNEL et visuellement distinct du consentement
+          obligatoire : ne conditionne PAS le bouton Continuer. */}
+      <label className="flex w-full cursor-pointer items-start gap-3 rounded-2xl border border-brand-blue/30 bg-brand-blue/5 p-4 text-left text-sm text-mist/90">
+        <input
+          type="checkbox"
+          checked={bankConsent}
+          onChange={(e) => onToggleBank(e.target.checked)}
+          className="mt-0.5 h-5 w-5 shrink-0 accent-[#0066cc]"
+        />
+        <span>
+          <span className="font-mono text-xs uppercase tracking-widest text-brand-blue/80">
+            Optionnel
+          </span>
+          <br />
+          J&apos;accepte que l&apos;image que je choisirai rejoigne la banque
+          du quiz de ce showroom, après validation par le facilitateur.
+          Supprimable sur simple demande.
+        </span>
       </label>
 
       <button
@@ -539,14 +571,18 @@ function GeneratingLoader() {
 }
 
 /* ── Étape 5 — Résultat : grille des scènes générées (1 à 4) ────────── */
+type BankStatus = "idle" | "sending" | "done" | "error";
+
 function Result({
   photo,
   results,
+  bankConsent,
   onRestart,
   onFinish,
 }: {
   photo: string;
   results: SceneResult[];
+  bankConsent: boolean;
   onRestart: () => void;
   onFinish: () => void;
 }) {
@@ -554,9 +590,44 @@ function Result({
   const [zoom, setZoom] = useState<{ src: string; caption: string } | null>(
     null,
   );
-  // Scène "préférée" (purement visuel pour l'instant — la banque quiz
-  // viendra en P1). Clic sur l'image = lightbox ; toggle dédié = sélection.
+  // Scène "préférée". Clic sur l'image = lightbox ; toggle dédié = sélection.
   const [favorite, setFavorite] = useState<string | null>(null);
+  // Envoi banque (si opt-in) : UN SEUL envoi par session — après "done", le
+  // bloc reste figé même si le visiteur change de préférée.
+  const [bankStatus, setBankStatus] = useState<BankStatus>("idle");
+  const [bankError, setBankError] = useState<string | null>(null);
+
+  const sendToBank = useCallback(async () => {
+    const fav = results.find((r) => r.scene === favorite);
+    if (!fav || bankStatus === "sending" || bankStatus === "done") return;
+    setBankStatus("sending");
+    setBankError(null);
+    try {
+      const res = await fetch("/api/bank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: fav.url, scene: fav.scene }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // 502 = souvent une URL fal expirée (rétention courte) : le seul
+        // remède est de régénérer, pas de réessayer le même envoi.
+        throw new Error(
+          res.status === 502
+            ? "L'image a peut-être expiré chez fal — refaites une génération, puis renvoyez."
+            : data?.message || "Échec de l'envoi. Réessayez.",
+        );
+      }
+      setBankStatus("done");
+    } catch (e) {
+      setBankStatus("error");
+      setBankError(
+        e instanceof Error ? e.message : "Échec de l'envoi. Réessayez.",
+      );
+    }
+  }, [results, favorite, bankStatus]);
+
+  const sending = bankStatus === "sending";
 
   return (
     <div className="flex w-full flex-col items-center gap-6">
@@ -649,6 +720,38 @@ function Result({
         })}
       </ul>
 
+      {/* Envoi banque : visible seulement si opt-in au consentement ET une
+          préférée choisie (ou un envoi déjà engagé — le bloc reste après
+          "done" même si la sélection change : un seul envoi par session). */}
+      {bankConsent && (favorite || bankStatus !== "idle") && (
+        <div className="flex w-full max-w-lg flex-col items-center gap-3 rounded-2xl border border-brand-blue/30 bg-brand-blue/5 p-4 text-center">
+          {bankStatus === "done" ? (
+            <p className="text-sm text-mist/90">
+              ✓ Envoyée à la banque du quiz — elle sera visible après
+              validation par le facilitateur. Merci !
+            </p>
+          ) : (
+            <>
+              {bankStatus === "error" && bankError && (
+                <p className="text-sm text-mist/90">⚠️ {bankError}</p>
+              )}
+              <button
+                type="button"
+                onClick={sendToBank}
+                disabled={sending || !favorite}
+                className={PRIMARY}
+              >
+                {sending
+                  ? "Envoi en cours…"
+                  : bankStatus === "error"
+                    ? "Réessayer"
+                    : "Ajouter ma préférée à la banque du quiz"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       <p className="max-w-lg text-center text-sm text-muted">
         Démonstration pédagogique de deepfake, générée via fal.ai : ces scènes
         ont été générées autour de votre visage, à partir d&apos;une seule
@@ -656,12 +759,24 @@ function Result({
         terminez.
       </p>
 
+      {/* Pendant un envoi banque : navigation gelée (aucun envoi fantôme si
+          le visiteur quitte le kiosque en plein POST). */}
       <div className="flex flex-wrap items-center justify-center gap-4">
-        <button type="button" onClick={onRestart} className={PRIMARY}>
-          Recommencer
+        <button
+          type="button"
+          onClick={onRestart}
+          disabled={sending}
+          className={PRIMARY}
+        >
+          {sending ? "Envoi en cours…" : "Recommencer"}
         </button>
-        <button type="button" onClick={onFinish} className={GHOST}>
-          Terminer et supprimer
+        <button
+          type="button"
+          onClick={onFinish}
+          disabled={sending}
+          className={`${GHOST} disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          {sending ? "Envoi en cours…" : "Terminer et supprimer"}
         </button>
       </div>
 
