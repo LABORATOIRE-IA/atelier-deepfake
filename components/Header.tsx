@@ -15,7 +15,8 @@ const PAGES = [
   { id: "home", href: "/", label: "Accueil" },
   { id: "quiz", href: "/quiz", label: "Quiz — Vrai ou Deepfake ?" },
   { id: "demo", href: "/demo", label: "Démonstrateur" },
-  { id: "celebrites", href: "/demo/celebrites", label: "Deepfakes célèbres" },
+  // masqué — galerie retirée de la nav (décision meeting), réversible :
+  // { id: "celebrites", href: "/demo/celebrites", label: "Deepfakes célèbres" },
 ] as const;
 
 export type PageId = (typeof PAGES)[number]["id"];
