@@ -424,7 +424,8 @@ function Intro({
         Commencer
       </button>
       <p className="font-mono text-xs text-muted">
-        [1][2] pour choisir · Entrée pour commencer
+        {themePacks.map((_, i) => `[${i + 1}]`).join("")} pour choisir · Entrée
+        pour commencer
       </p>
       <Link href="/" className={`${GHOST} mt-2`}>
         ← Accueil

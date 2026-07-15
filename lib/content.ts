@@ -9,8 +9,8 @@
 
 export type MediaType = "image" | "video";
 
-/** Thèmes du quiz (P2) — extensible : "paysages", "documents"… */
-export type ThemeId = "visages" | "showroom";
+/** Thèmes du quiz (P2) — extensible : "documents"… */
+export type ThemeId = "visages" | "showroom" | "paysages";
 
 /** Pack de thème affiché sur l'écran de sélection du quiz. */
 export interface ThemePack {
@@ -31,6 +31,11 @@ export const themePacks: ThemePack[] = [
     id: "showroom",
     label: "Vu au showroom",
     description: "Deepfakes créés par les visiteurs (banque)",
+  },
+  {
+    id: "paysages",
+    label: "Paysages",
+    description: "Vrai cliché ou paysage généré ?",
   },
 ];
 
@@ -232,6 +237,151 @@ export const quizRounds: QuizRound[] = [
       "Format vignette : les défauts disparaissent à petite taille",
       "Fond minimal, hors de tout contexte vérifiable",
       "Symétrie du visage inhabituellement forte",
+    ],
+  },
+  // ─── Thème "Paysages" (P2) — 5 FAKE (bench IA) + 5 REAL (Unsplash) ────
+  // FAKE : paysages générés (scripts/bench-output), copiés en local dans
+  // public/quiz/paysages/. Chaque fiche est taguée themes:["paysages"].
+  // — FAKE (paysages générés par IA) —
+  {
+    id: "pay-fake-rue",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/fake-rue.jpg",
+    isDeepfake: true,
+    explanation:
+      "Générée par IA. La scène est convaincante au premier coup d'œil, mais le texte la trahit : les modèles de génération ne savent toujours pas écrire.",
+    indices: [
+      "Le panneau jaune sur la façade rose affiche un texte incohérent (« FAP RISHON »).",
+      "La plaque de la voiture blanche est brouillée et illisible.",
+      "La lanterne en fer forgé et la gouttière se fondent l'une dans l'autre au premier plan.",
+    ],
+  },
+  {
+    id: "pay-fake-lac",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/fake-lac.jpg",
+    isDeepfake: true,
+    explanation:
+      "Générée par IA. L'eau calme et claire devrait renvoyer les montagnes — l'absence de reflet est le signe le plus sûr.",
+    indices: [
+      "Le lac ne reflète ni les sommets ni la forêt, alors que la surface est lisse.",
+      "Les deux versants sont presque symétriques, trop équilibrés pour un paysage réel.",
+      "Les galets immergés semblent flotter : la réfraction sous l'eau est mal rendue.",
+    ],
+  },
+  {
+    id: "pay-fake-falaises",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/fake-falaises.jpg",
+    isDeepfake: true,
+    explanation:
+      "Générée par IA. Spectaculaire, mais la lumière du coucher de soleil n'éclaire pas les falaises de façon cohérente d'un cap à l'autre.",
+    indices: [
+      "Des pans de falaise qui devraient être à contre-jour sont éclairés, et inversement.",
+      "Les strates de la grande paroi ondulent et se raccordent mal, avec des coutures verticales.",
+      "Les caps successifs vers l'horizon se répètent, clonés à échelle décroissante.",
+    ],
+  },
+  {
+    id: "pay-fake-desert",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/fake-desert.jpg",
+    isDeepfake: true,
+    explanation:
+      "Générée par IA — et difficile. Les indices sont subtils : cohérence des ombres et répétition des textures.",
+    indices: [
+      "Les dunes sont éclairées par la droite, mais les buissons du premier plan ne projettent presque aucune ombre.",
+      "Les rides de sable se répètent de façon trop homogène et « glissent » sans suivre le relief.",
+      "Plusieurs buissons sont quasi identiques et se terminent dans le vide, sans tronc net.",
+    ],
+  },
+  {
+    id: "pay-fake-foret",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/fake-foret.jpg",
+    isDeepfake: true,
+    explanation:
+      "Générée par IA — l'image la plus propre du lot. C'est la répétition, plus qu'un défaut franc, qui trahit la génération.",
+    indices: [
+      "Les conifères se ressemblent trop en forme et en espacement : un motif d'arbres clonés.",
+      "Le détail des aiguilles se dissout en amas verts flous, sans branches lisibles.",
+      "La limite entre arbres nets et arbres noyés dans la brume est parfois trop brutale.",
+    ],
+  },
+  // — REAL (photographies authentiques, Unsplash) —
+  {
+    id: "pay-real-champ",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/real-1.jpg",
+    isDeepfake: false,
+    explanation:
+      "Photographie authentique. Un paysage simple est parfois le plus piégeux : sans texte ni architecture, il y a peu de prise pour un artefact — mais la texture de l'herbe et le dégradé du ciel sont parfaitement cohérents.",
+    indices: [
+      "Le brin d'herbe est irrégulier et non répétitif : une vraie texture naturelle.",
+      "Le dégradé du ciel est continu, sans raccord ni aplat.",
+      "L'horizon est net et régulier, sans ondulation suspecte.",
+    ],
+  },
+  {
+    id: "pay-real-ville",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/real-2.jpg",
+    isDeepfake: false,
+    explanation:
+      "Photographie authentique. Attention au réflexe « il y a du texte donc c'est vrai » — ici les enseignes et panneaux sont lisibles et cohérents, contrairement au charabia d'une génération.",
+    indices: [
+      "Les inscriptions et enseignes sont lisibles et bien formées.",
+      "Les lignes de fuite de la rue sont géométriquement cohérentes.",
+      "Les fenêtres et façades s'alignent sans fusion ni déformation.",
+    ],
+  },
+  {
+    id: "pay-real-plage",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/real-3.jpg",
+    isDeepfake: false,
+    explanation:
+      "Photographie authentique. Le bord de mer sous ciel dégagé suit une logique physique cohérente : écume, reflets sur l'eau et dégradé du ciel s'accordent.",
+    indices: [
+      "L'écume et les vagues suivent une houle plausible, non répétée.",
+      "Les reflets et la brillance sur l'eau sont cohérents avec la lumière du ciel.",
+      "La ligne d'horizon mer/ciel est nette et rectiligne.",
+    ],
+  },
+  {
+    id: "pay-real-route",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/real-4.jpg",
+    isDeepfake: false,
+    explanation:
+      "Photographie authentique. La végétation dense pourrait évoquer la « pâte verte » d'une génération, mais en y regardant, les arbres gardent une structure de branches et une profondeur cohérentes.",
+    indices: [
+      "Le feuillage garde une structure lisible, avec des branches et des plans de profondeur.",
+      "La route et son marquage fuient de façon géométriquement correcte.",
+      "Les ombres portées des arbres suivent toutes la même direction de lumière.",
+    ],
+  },
+  {
+    id: "pay-real-prairie",
+    themes: ["paysages"],
+    mediaType: "image",
+    mediaUrl: "/quiz/paysages/real-5.jpg",
+    isDeepfake: false,
+    explanation:
+      "Photographie authentique. Le ciel nuageux est le vrai juge : les nuages ont une structure de bords irrégulière et une profondeur que la génération lisse souvent en cotons trop uniformes.",
+    indices: [
+      "Les nuages ont des bords irréguliers et une épaisseur variable, non lissée.",
+      "La lumière du ciel et celle du sol sont cohérentes entre elles.",
+      "L'herbe présente des variations de densité et de teinte naturelles.",
     ],
   },
 ];
