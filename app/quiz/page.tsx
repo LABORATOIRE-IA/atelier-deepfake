@@ -145,6 +145,13 @@ export default function QuizPage() {
   // Ordre mélangé, figé pour toute la session. Re-mélangé à chaque "Commencer"
   // / "Recommencer". (Vide tant qu'on n'a pas démarré : pas de shuffle au SSR.)
   const [order, setOrder] = useState<QuizRound[]>([]);
+  // Score collectif (P3, gamification light) — un verdict par manche, aligné
+  // sur `order` : true = le groupe a eu juste, false = raté, null = pas (encore)
+  // jugé. VÉRITÉ UNIQUE : score et streaks se recalculent d'ici (jamais
+  // d'incrément direct), donc robuste au back() et au re-jugement. La SAISIE
+  // du verdict arrive à l'étape 3 ; ici tout reste null. Réinitialisé à chaque
+  // start(). Éphémère : aucune persistance, aucun envoi réseau.
+  const [results, setResults] = useState<(boolean | null)[]>([]);
   // Pool dynamique de la banque (P1) : chargé en arrière-plan au montage.
   // Échec, lenteur ou pool vide = [], et le tirage reste 100 % statique —
   // AUCUN état de chargement, le facilitateur peut démarrer immédiatement.
@@ -210,11 +217,39 @@ export default function QuizPage() {
 
   const start = useCallback(() => {
     if (!plan.playable) return;
-    setOrder(drawRounds(plan));
+    const nextOrder = drawRounds(plan);
+    setOrder(nextOrder);
+    setResults(Array(nextOrder.length).fill(null));
     setCurrent(0);
     setRevealed(false);
     setPhase("round");
   }, [plan]);
+
+  // Dérivés du score — recalculés depuis `results` (source unique). Aucun
+  // compteur incrémental : revenir en arrière ou re-juger une manche reste
+  // cohérent. Tant qu'aucun verdict n'est saisi (étape 3), tout vaut 0.
+  //  - score        : nombre de manches jugées « juste »
+  //  - bestStreak   : plus longue série consécutive de « juste »
+  //  - currentStreak: série de « juste » finissant à la manche courante
+  const stats = useMemo(() => {
+    const score = results.filter((r) => r === true).length;
+    let bestStreak = 0;
+    let run = 0;
+    for (const r of results) {
+      if (r === true) {
+        run += 1;
+        if (run > bestStreak) bestStreak = run;
+      } else {
+        run = 0;
+      }
+    }
+    let currentStreak = 0;
+    for (let i = current; i >= 0; i--) {
+      if (results[i] === true) currentStreak += 1;
+      else break;
+    }
+    return { score, bestStreak, currentStreak };
+  }, [results, current]);
 
   // Avancer : question -> révélation -> manche suivante -> fin
   // (tout dérive de order.length — le total varie avec le tirage)
@@ -293,7 +328,18 @@ export default function QuizPage() {
         onStart={start}
       />
     );
-  if (phase === "end") return <End onRestart={start} />;
+  if (phase === "end")
+    return (
+      <End
+        score={stats.score}
+        bestStreak={stats.bestStreak}
+        total={order.length}
+        // Bilan chiffré seulement si au moins un verdict a été saisi ;
+        // sinon (cas actuel, verdict pas encore implémenté) → copie inchangée.
+        scored={results.some((r) => r !== null)}
+        onRestart={start}
+      />
+    );
 
   const round = order[current];
   const isLast = current === order.length - 1;
@@ -435,7 +481,20 @@ function Intro({
 }
 
 /* ── Fin ───────────────────────────────────────────────────────────── */
-function End({ onRestart }: { onRestart: () => void }) {
+function End({
+  score,
+  bestStreak,
+  total,
+  scored,
+  onRestart,
+}: {
+  score: number;
+  bestStreak: number;
+  total: number;
+  /** true = au moins un verdict saisi → afficher le bilan chiffré */
+  scored: boolean;
+  onRestart: () => void;
+}) {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pb-16 text-center">
       <span className="font-mono text-xs uppercase tracking-[0.28em] text-brand-teal/80">
@@ -447,10 +506,21 @@ function End({ onRestart }: { onRestart: () => void }) {
       >
         C&apos;est terminé
       </h2>
-      <p className="max-w-md text-lg text-mist/80">
-        Pas de score, et c&apos;est volontaire : l&apos;important, c&apos;est
-        d&apos;avoir aiguisé le réflexe de douter.
-      </p>
+      {scored ? (
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-5xl font-bold tracking-tight text-teal-glow sm:text-6xl">
+            Score {score} / {total}
+          </span>
+          <span className="font-mono text-sm uppercase tracking-[0.2em] text-muted">
+            Meilleure série : {bestStreak}
+          </span>
+        </div>
+      ) : (
+        <p className="max-w-md text-lg text-mist/80">
+          Pas de score, et c&apos;est volontaire : l&apos;important, c&apos;est
+          d&apos;avoir aiguisé le réflexe de douter.
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
         <button type="button" onClick={onRestart} className={PRIMARY}>
           Recommencer
